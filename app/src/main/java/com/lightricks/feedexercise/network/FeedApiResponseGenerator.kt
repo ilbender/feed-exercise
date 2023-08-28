@@ -19,7 +19,7 @@ object FeedApiResponseGenerator {
     init {
         feedApiService = retrofit.create(FeedApiService::class.java)
     }
-    fun createFeedApiService() : FeedApiService {
+    fun getFeedApiService() : FeedApiService {
         return this.feedApiService
     }
 }
