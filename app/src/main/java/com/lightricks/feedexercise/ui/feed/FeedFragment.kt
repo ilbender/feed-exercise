@@ -15,6 +15,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.lightricks.feedexercise.R
 import com.lightricks.feedexercise.databinding.FeedFragmentBinding
 
+
 /**
  * This Fragment shows the feed grid. The feed consists of template thumbnail images.
  * Layout file: feed_fragment.xml
@@ -48,6 +49,8 @@ class FeedFragment : Fragment() {
             // only if there result of getContentIfNotHandled() is not null.
             event.getContentIfNotHandled()?.let { showNetworkError() }
         })
+
+
     }
 
     private fun setupViews() {
