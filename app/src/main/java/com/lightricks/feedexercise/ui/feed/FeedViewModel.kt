@@ -1,25 +1,15 @@
 package com.lightricks.feedexercise.ui.feed
 
-import android.app.Application
 import androidx.lifecycle.*
-import androidx.room.Room
 import com.lightricks.feedexercise.data.FeedItem
-import com.lightricks.feedexercise.database.FeedDatabase
-import com.lightricks.feedexercise.database.UserProject
-import com.lightricks.feedexercise.network.Constant.BASE_THUMBNAIL_URL
-import com.lightricks.feedexercise.network.FeedApiResponseGenerator
-import com.lightricks.feedexercise.network.FeedApiService
-import com.lightricks.feedexercise.network.TemplatesMetadata
-import com.lightricks.feedexercise.network.TemplatesMetadataItem
+import com.lightricks.feedexercise.data.FeedRepository
 import com.lightricks.feedexercise.util.Event
-import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
 
 /**
  * This view model manages the data for [FeedFragment].
  */
-open class FeedViewModel(application: Application) : AndroidViewModel(application) {
+open class FeedViewModel(private val feedRepository: FeedRepository) : ViewModel() {
 
 
     private val stateInternal: MutableLiveData<State> = MutableLiveData<State>(DEFAULT_STATE)
@@ -36,20 +26,6 @@ open class FeedViewModel(application: Application) : AndroidViewModel(applicatio
         return stateInternal.map { state -> state.isLoading }
     }
 
-    private fun fetchFeedItems() {
-        updateState { copy(feedItems, isLoading = true) }
-        val feedApiService: FeedApiService = FeedApiResponseGenerator.feedApiService
-        val subscribe = feedApiService.getFeedData()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe({ feedResponse ->
-                handleResponse(feedResponse)
-                saveToDb()
-            }, { error ->
-                handleError(error)
-            })
-        compositeDisposable.add(subscribe)
-    }
 
     private fun handleError(error: Throwable) {
         val msg: String = error.message ?: "Unexpected error"
@@ -57,13 +33,6 @@ open class FeedViewModel(application: Application) : AndroidViewModel(applicatio
         updateState { copy(feedItems, isLoading = false) }
     }
 
-    private fun handleResponse(feedResponse: TemplatesMetadata) {
-        val rawResponseList = feedResponse.templatesMetadata
-        val feedItemLst: List<FeedItem> = rawResponseList.map { item ->
-            FeedItem(item.id, responseUrlToThumbnailUrl(item), item.isPremium)
-        }
-        updateState { State(feedItemLst, false) }
-    }
 
 
     fun getIsEmpty(): LiveData<Boolean> {
@@ -77,11 +46,25 @@ open class FeedViewModel(application: Application) : AndroidViewModel(applicatio
     fun getNetworkErrorEvent(): LiveData<Event<String>> = networkErrorEvent
 
     init {
-        refresh()
+        updateState { copy(null,true) }
+        val disposable = feedRepository.refresh().andThen(feedRepository.getAllProjects())
+            .subscribe({
+                    userProjects ->
+                updateState { copy(userProjects.map{ userProject ->
+                    FeedItem(userProject.id,userProject.thumbnailUrl,userProject.isPremium) },
+                    false) }
+            },{error ->
+                updateState { copy(getFeedItems().value,false) }
+                handleError(error)})
+        compositeDisposable.add(disposable)
     }
 
     fun refresh() {
-        fetchFeedItems()
+        val disposable = feedRepository.refresh().subscribe({},
+            { error ->
+                handleError(error)})
+        compositeDisposable.add(disposable)
+
     }
 
     private fun updateState(transform: State.() -> State) {
@@ -104,16 +87,8 @@ open class FeedViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
-    private fun saveToDb() {
-        val DB_NAME = "user_project_db.db"
-        val db = Room.databaseBuilder(getApplication(), FeedDatabase::class.java, DB_NAME).build()
-        val userProjectDao = db.userProjectDao()
-        val dbList = feedLstToDbLst(stateInternal.value?.feedItems!!)
-        val disposable = userProjectDao.insertAll(dbList)
-            .subscribeOn(Schedulers.io()).subscribe({},
-                { error -> handleError(error) })
-        compositeDisposable.add(disposable)
-    }
+
+
 }
 
 /**
@@ -121,23 +96,12 @@ open class FeedViewModel(application: Application) : AndroidViewModel(applicatio
  * It's not necessary to use this factory at this stage. But if we will need to inject
  * dependencies into [FeedViewModel] in the future, then this is the place to do it.
  */
-class FeedViewModelFactory(val application: Application) : ViewModelProvider.Factory {
+class FeedViewModelFactory(val feedRepository: FeedRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (!modelClass.isAssignableFrom(FeedViewModel::class.java)) {
             throw IllegalArgumentException("factory used with a wrong class")
         }
         @Suppress("UNCHECKED_CAST")
-        return FeedViewModel(application) as T
+        return FeedViewModel(feedRepository) as T
     }
 }
-
-fun responseUrlToThumbnailUrl(item: TemplatesMetadataItem): String {
-    return BASE_THUMBNAIL_URL + item.templateThumbnailURI
-}
-
-fun feedLstToDbLst(feedItemLst: List<FeedItem>): List<UserProject> {
-    return feedItemLst.map { feedItem ->
-        UserProject(feedItem.id, feedItem.thumbnailUrl, feedItem.isPremium)
-    }
-}
-
