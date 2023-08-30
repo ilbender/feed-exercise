@@ -39,7 +39,7 @@ class FeedRepositoryTest {
     @Test
     fun testRefreshSaves(){
         feedRepository.refresh().test().awaitTerminalEvent()
-        var fetchedList : List<UserProject> = mutableListOf()
+        var fetchedList : List<UserProject>
         db.userProjectDao().getAll().subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext{userProjects ->
