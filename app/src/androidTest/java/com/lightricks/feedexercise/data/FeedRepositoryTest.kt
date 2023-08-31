@@ -12,22 +12,19 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class FeedRepositoryTest(
-    private var db: FeedDatabase,
-    private var feedRepository: FeedRepository,
-    private var userProjectList: List<UserProject>
-) {
-    fun init() {
-        this.db = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            FeedDatabase::class.java
-        ).build()
-        this.feedRepository = FeedRepository(ConstantItemsApiService, db)
+class FeedRepositoryTest() {
+    private val db: FeedDatabase = Room.inMemoryDatabaseBuilder(
+        ApplicationProvider.getApplicationContext(),
+        FeedDatabase::class.java
+    ).build()
+    private val feedRepository: FeedRepository = FeedRepository(ConstantItemsApiService, db)
+    private val userProjectList: List<UserProject> = Constans.hardCodedList.map { item ->
+        UserProject(item.id, responseUrlToThumbnailUrl(item.thumbnailUrl), item.isPremium)
     }
+
 
     @Test
     fun testRefreshSaves() {
-        init()
         feedRepository.refresh().test().awaitTerminalEvent()
         var fetchedList: List<UserProject>
         db.userProjectDao().getAll().subscribeOn(Schedulers.io())
@@ -41,7 +38,6 @@ class FeedRepositoryTest(
 
     @Test
     fun testGetAll(){
-        init()
         feedRepository.refresh().test().awaitTerminalEvent()
         lateinit var fetchedList: List<UserProject>
         feedRepository.getAllProjects().subscribe{
