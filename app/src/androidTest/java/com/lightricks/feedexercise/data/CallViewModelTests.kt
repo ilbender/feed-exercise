@@ -3,12 +3,15 @@ package com.lightricks.feedexercise.data
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lightricks.feedexercise.database.FeedDatabase
 import com.lightricks.feedexercise.database.UserProject
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(AndroidJUnit4::class)
 class CallViewModelTests {
 
     @get:Rule
@@ -34,11 +37,16 @@ class CallViewModelTests {
         val db = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             FeedDatabase::class.java).build()
-        val feedRepository = FeedRepository(MockApiService,db)
+        val feedRepository = FeedRepository(ConstantMockApiService,db)
         this.viewModelTest = ViewModelTest(db,feedRepository,hardCodedList)
     }
     @Test
-    fun testFeedRepoSave(){
-        this.viewModelTest.testViewModelData()
+    fun testViewModelInit(){
+        this.viewModelTest.testViewModelInitData()
+    }
+
+    @Test
+    fun testViewModelDelete(){
+        this.viewModelTest.testViewModelDeleteData()
     }
 }

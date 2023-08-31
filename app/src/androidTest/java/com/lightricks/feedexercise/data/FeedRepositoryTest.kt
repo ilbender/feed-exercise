@@ -21,7 +21,7 @@ class FeedRepositoryTest(private var db : FeedDatabase,
     fun init(){
         this.db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
             FeedDatabase::class.java).build()
-        this.feedRepository = FeedRepository(MockApiService,db)
+        this.feedRepository = FeedRepository(ConstantMockApiService,db)
     }
 
     @Test

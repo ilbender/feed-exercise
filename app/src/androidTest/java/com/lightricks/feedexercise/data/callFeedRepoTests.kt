@@ -28,7 +28,7 @@ class callFeedRepoTests {
     fun setup(){
         val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
             FeedDatabase::class.java).build()
-        val feedRepository = FeedRepository(MockApiService,db)
+        val feedRepository = FeedRepository(ConstantMockApiService,db)
         this.feedRepositoryTest = FeedRepositoryTest(db,feedRepository,hardCodedList)
     }
     @Test
