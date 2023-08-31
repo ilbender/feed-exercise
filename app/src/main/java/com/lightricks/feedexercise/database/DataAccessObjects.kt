@@ -12,12 +12,12 @@ import io.reactivex.Single
 @Dao
 interface UserProjectDao{
     @Query("SELECT * FROM userproject")
-    fun getAll() : List<UserProject>
+    fun getAll() : Observable<List<UserProject>>
 
     @Query("SELECT * FROM userproject WHERE id IN (:userIds)")
     fun getAllByIds(userIds : List<String>) : Observable<List<UserProject>>
 
-    @Query("SELECT * FROM userproject WHERE id LIKE :uid")
+    @Query("SELECT * FROM userproject WHERE id = :uid")
     fun getById(uid : String) : UserProject
 
     @Query("DELETE FROM userproject")
@@ -31,6 +31,6 @@ interface UserProjectDao{
     fun delete(userProject: UserProject)
 
     @Query("SELECT COUNT(*) FROM userproject")
-    fun getUserCount() : Single<Int>
+    fun getProjectCount() : Single<Int>
 }
 
