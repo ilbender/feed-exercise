@@ -4,6 +4,7 @@ import androidx.lifecycle.*
 import com.lightricks.feedexercise.data.FeedItem
 import com.lightricks.feedexercise.data.FeedRepository
 import com.lightricks.feedexercise.util.Event
+import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 
 
@@ -46,7 +47,8 @@ open class FeedViewModel(private val feedRepository: FeedRepository) : ViewModel
     fun getNetworkErrorEvent(): LiveData<Event<String>> = networkErrorEvent
 
     init {
-        val disposableA =  feedRepository.getAllProjects().subscribe({ userProjects ->
+        val disposableA =  feedRepository.getAllProjects()
+            .observeOn(AndroidSchedulers.mainThread()).subscribe({ userProjects ->
             updateState {
                 State(
                     userProjects.map { userProject ->
@@ -56,7 +58,7 @@ open class FeedViewModel(private val feedRepository: FeedRepository) : ViewModel
                 )
             }
         }, { error ->
-            updateState { copy(getFeedItems().value, false) }
+            updateState { copy(isLoading = false) }
             handleError(error)
         })
         val disposableB = feedRepository.refresh().subscribe({}, { error -> handleError(error) })

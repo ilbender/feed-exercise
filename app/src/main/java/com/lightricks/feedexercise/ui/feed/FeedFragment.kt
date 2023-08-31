@@ -1,14 +1,14 @@
 package com.lightricks.feedexercise.ui.feed
 
 import android.app.Application
-import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.databinding.DataBindingUtil
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.room.Room
@@ -32,9 +32,11 @@ class FeedFragment : Fragment() {
     private lateinit var viewModel: FeedViewModel
     private lateinit var feedAdapter: FeedAdapter
 
-    override fun onCreateView(inflater: LayoutInflater,
-                              container: ViewGroup?,
-                              savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
         dataBinding = DataBindingUtil.inflate(inflater, R.layout.feed_fragment, container, false)
         setupViewModel()
         setupViews()
@@ -42,7 +44,7 @@ class FeedFragment : Fragment() {
     }
 
     private fun setupViewModel() {
-        val feedRepository = FeedRepository(FeedApiResponseGenerator.feedApiService,buildDb())
+        val feedRepository = FeedRepository(FeedApiResponseGenerator.feedApiService, buildDb())
         viewModel = ViewModelProvider(this, FeedViewModelFactory(feedRepository))
             .get(FeedViewModel::class.java)
 
@@ -57,9 +59,13 @@ class FeedFragment : Fragment() {
         })
     }
 
-    private fun buildDb(): FeedDatabase {
+    private inline fun buildDb(): FeedDatabase {
         val DB_NAME = "user_project_db.db"
-        val db = Room.databaseBuilder(requireContext().applicationContext as Application, FeedDatabase::class.java, DB_NAME).build()
+        val db = Room.databaseBuilder(
+            requireContext().applicationContext as Application,
+            FeedDatabase::class.java,
+            DB_NAME
+        ).build()
         return db
     }
 

@@ -23,20 +23,26 @@ class FeedRepository(
 
 
     fun refresh(): Completable {
-        return feedApiService.getFeedData().subscribeOn(Schedulers.io()).flatMapCompletable { feedData ->
-            feedDatabase.userProjectDao().insertAll(rotateList(feedData.templatesMetadata.map { item ->
-                UserProject(item.id, responseUrlToThumbnailUrl(item.templateThumbnailURI), item.isPremium)
-            }))
-        }.observeOn(AndroidSchedulers.mainThread())
+        return feedApiService.getFeedData().subscribeOn(Schedulers.io())
+            .flatMapCompletable { feedData ->
+                feedDatabase.userProjectDao()
+                    .insertAll(rotateList(feedData.templatesMetadata.map { item ->
+                        UserProject(
+                            item.id,
+                            responseUrlToThumbnailUrl(item.templateThumbnailURI),
+                            item.isPremium
+                        )
+                    }))
+            }.observeOn(AndroidSchedulers.mainThread())
     }
 
     fun getAllProjects(): Observable<List<UserProject>> {
 
         return feedDatabase.userProjectDao().getAll()
-            .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
+            .subscribeOn(Schedulers.io())
     }
 
-    private fun rotateList(originalList : List<UserProject>) : List<UserProject>{
+    private fun rotateList(originalList: List<UserProject>): List<UserProject> {
         val currentRotations = this.rotationNumber % originalList.size
         this.rotationNumber = this.rotationNumber + 1
         return originalList.takeLast(currentRotations) + originalList.dropLast(currentRotations)
