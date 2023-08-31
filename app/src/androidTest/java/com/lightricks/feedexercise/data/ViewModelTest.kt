@@ -8,72 +8,87 @@ import com.lightricks.feedexercise.database.FeedDatabase
 import com.lightricks.feedexercise.database.UserProject
 import com.lightricks.feedexercise.ui.feed.FeedViewModel
 import com.lightricks.feedexercise.ui.feed.FeedViewModelFactory
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
 import org.junit.Assert
-import org.junit.Before
-import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
-class ViewModelTest (private var db : FeedDatabase,
-                     private var feedRepository: FeedRepository,
-                     private var userProjectList : List<UserProject>){
+class ViewModelTest(
+    private var db: FeedDatabase,
+    private var feedRepository: FeedRepository,
+    private var userProjectList: List<UserProject>
+) {
+
+    private lateinit var viewModel: FeedViewModel
 
 
-
-    @Before
-    fun init(){
+    fun init() {
         this.db = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
-            FeedDatabase::class.java).build()
-        this.feedRepository = FeedRepository(ConstantMockApiService,db)
+            FeedDatabase::class.java
+        ).build()
+        this.feedRepository = FeedRepository(ConstantItemsApiService, db)
+        val viewModelFactory = FeedViewModelFactory(feedRepository)
+        viewModel = viewModelFactory.create(FeedViewModel::class.java)
+        Thread.sleep(100)
     }
-    @Test
-    fun testViewModelInitData(){
-        val latch = CountDownLatch(1)
-        val viewModelFactory  = FeedViewModelFactory(feedRepository)
-        val viewModel : FeedViewModel = viewModelFactory.create(FeedViewModel::class.java)
-        latch.await(1, TimeUnit.SECONDS)
-        lateinit var feedItemsLst : List<FeedItem>
-        viewModel.getFeedItems().observe(
-            TestLifecycleOwner(),
-            {glug -> feedItemsLst = glug})
-        val hardCodedFeedItemsLst = userProjectList.map { item ->
-            FeedItem(item.id,responseUrlToThumbnailUrl(item.thumbnailUrl),item.isPremium) }
-        Assert.assertEquals(feedItemsLst,hardCodedFeedItemsLst)
+
+    fun testViewModelInitData() {
+        init()
+        val pair: Pair<List<FeedItem>, List<FeedItem>> = setup()
+        val viewModelLst: List<FeedItem> = pair.first
+        val expectedFullLst = pair.second
+        Assert.assertEquals(viewModelLst, expectedFullLst)
     }
 
 
-    fun testViewModelDeleteData(){
-        val latch = CountDownLatch(1)
-
-        val viewModelFactory  = FeedViewModelFactory(feedRepository)
-        val viewModel : FeedViewModel = viewModelFactory.create(FeedViewModel::class.java)
-        viewModel.refresh()
-        latch.await(1,TimeUnit.SECONDS)
-
-//        this.db.userProjectDao().insertAll(userProjectList).subscribe()
-        latch.await(1,TimeUnit.SECONDS)
-        val a = this.db.userProjectDao().getById("01E18PGE1RYB3R9YF9HRXQ0ZSD")
-        this.db.userProjectDao().delete(a)
-        latch.await(1,TimeUnit.SECONDS)
-        lateinit var lst : List<UserProject>
-
-        this.feedRepository.getAllProjects().subscribe { glug -> lst = glug }
-        latch.await(1,TimeUnit.SECONDS)
-        val b = 0
-        latch.await(1, TimeUnit.SECONDS)
-        lateinit var viewModelLst : List<FeedItem>
+    fun testViewModelDeleteData() {
+        init()
+        deleteFirstProject()
+        lateinit var viewModelLst: List<FeedItem>
         viewModel.getFeedItems().observe(
             TestLifecycleOwner(),
-            {plop -> viewModelLst = plop})
-        val c = 0
-//        val hardCodedFeedItemsLst = userProjectList.map { item ->
-//            FeedItem(item.id,responseUrlToThumbnailUrl(item.thumbnailUrl),item.isPremium) }
-//        Assert.assertEquals(feedItemsLst,hardCodedFeedItemsLst.dropLast(1))
+            { feedItems -> viewModelLst = feedItems })
+        val expected = userProjectList.map { item ->
+            FeedItem(item.id, responseUrlToThumbnailUrl(item.thumbnailUrl), item.isPremium)
+        }.drop(1)
+        Assert.assertEquals(expected, viewModelLst)
+    }
 
+
+    fun testViewModelUpdateInsertion() {
+        init()
+
+        val pair: Pair<List<FeedItem>, List<FeedItem>> = setup()
+        val viewModelLst: List<FeedItem> = pair.first
+        val expectedFullLst = pair.second
+        for (i in 1..expectedFullLst.size) {
+            //toHashSet since order doesn't matter and refresh rotates the list due to bonus from
+            //last step and its easier this way.
+            val expected = expectedFullLst.take(i).toHashSet()
+            Assert.assertEquals(viewModelLst.toHashSet(), expected)
+            viewModel.refresh()
+            Thread.sleep(100) //wait for IO thingies
+
+        }
+    }
+
+    private fun deleteFirstProject() {
+        val firstProject = this.db.userProjectDao().getById(userProjectList[0].id)
+        this.db.userProjectDao().delete(firstProject)
+        Thread.sleep(100)
+    }
+
+
+    private fun setup(): Pair< List<FeedItem>, List<FeedItem>> {
+
+        Thread.sleep(100)
+        lateinit var viewModelLst: List<FeedItem>
+        viewModel.getFeedItems().observe(
+            TestLifecycleOwner(),
+            { feedItems -> viewModelLst = feedItems })
+        val expectedFullLst = userProjectList.map { item ->
+            FeedItem(item.id, responseUrlToThumbnailUrl(item.thumbnailUrl), item.isPremium)
+        }
+        return Pair( viewModelLst, expectedFullLst)
     }
 }

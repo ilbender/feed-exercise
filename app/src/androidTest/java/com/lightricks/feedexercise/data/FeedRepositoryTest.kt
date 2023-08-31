@@ -8,33 +8,49 @@ import com.lightricks.feedexercise.database.UserProject
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import org.junit.Assert
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class FeedRepositoryTest(private var db : FeedDatabase,
-                         private var feedRepository: FeedRepository,
-                         private var userProjectList : List<UserProject>) {
-
-    @Before
-    fun init(){
-        this.db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
-            FeedDatabase::class.java).build()
-        this.feedRepository = FeedRepository(ConstantMockApiService,db)
+class FeedRepositoryTest(
+    private var db: FeedDatabase,
+    private var feedRepository: FeedRepository,
+    private var userProjectList: List<UserProject>
+) {
+    fun init() {
+        this.db = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            FeedDatabase::class.java
+        ).build()
+        this.feedRepository = FeedRepository(ConstantItemsApiService, db)
     }
 
     @Test
-    fun testRefreshSaves(){
+    fun testRefreshSaves() {
+        init()
         feedRepository.refresh().test().awaitTerminalEvent()
-        var fetchedList : List<UserProject>
+        var fetchedList: List<UserProject>
         db.userProjectDao().getAll().subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext{userProjects ->
+            .doOnNext { userProjects ->
                 fetchedList = userProjects
-                Assert.assertEquals(fetchedList,userProjectList)
+                Assert.assertEquals(fetchedList, userProjectList)
             }
             .subscribe()
+    }
+
+    @Test
+    fun testGetAll(){
+        init()
+        feedRepository.refresh().test().awaitTerminalEvent()
+        lateinit var fetchedList: List<UserProject>
+        feedRepository.getAllProjects().subscribe{
+                fetchedUserProjects -> fetchedList = fetchedUserProjects
+                Assert.assertEquals(fetchedList, userProjectList)
+        }
+
+
+
     }
 }
 
