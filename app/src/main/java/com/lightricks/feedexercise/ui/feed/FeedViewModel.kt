@@ -6,6 +6,7 @@ import com.lightricks.feedexercise.data.FeedRepository
 import com.lightricks.feedexercise.util.Event
 import io.reactivex.disposables.CompositeDisposable
 
+
 /**
  * This view model manages the data for [FeedFragment].
  */
@@ -30,9 +31,8 @@ open class FeedViewModel(private val feedRepository: FeedRepository) : ViewModel
     private fun handleError(error: Throwable) {
         val msg: String = error.message ?: "Unexpected error"
         networkErrorEvent.postValue(Event(msg))
-        updateState { copy(feedItems, isLoading = false) }
+        updateState { copy(isLoading = false) }
     }
-
 
 
     fun getIsEmpty(): LiveData<Boolean> {
@@ -46,25 +46,31 @@ open class FeedViewModel(private val feedRepository: FeedRepository) : ViewModel
     fun getNetworkErrorEvent(): LiveData<Event<String>> = networkErrorEvent
 
     init {
-        updateState { copy(null,true) }
-        val disposable = feedRepository.refresh().andThen(feedRepository.getAllProjects())
-            .subscribe({
-                    userProjects ->
-                updateState { copy(userProjects.map{ userProject ->
-                    FeedItem(userProject.id,userProject.thumbnailUrl,userProject.isPremium) },
-                    false) }
-            },{error ->
-                updateState { copy(getFeedItems().value,false) }
-                handleError(error)})
-        compositeDisposable.add(disposable)
+        val disposableA =  feedRepository.getAllProjects().subscribe({ userProjects ->
+            updateState {
+                State(
+                    userProjects.map { userProject ->
+                        FeedItem(userProject.id, userProject.thumbnailUrl, userProject.isPremium)
+                    },
+                    false
+                )
+            }
+        }, { error ->
+            updateState { copy(getFeedItems().value, false) }
+            handleError(error)
+        })
+        val disposableB = feedRepository.refresh().subscribe({}, { error -> handleError(error) })
+        compositeDisposable.add(disposableA)
+        compositeDisposable.add(disposableB)
     }
 
     fun refresh() {
+        updateState { copy(isLoading = true) }
         val disposable = feedRepository.refresh().subscribe({},
             { error ->
-                handleError(error)})
+                handleError(error)
+            })
         compositeDisposable.add(disposable)
-
     }
 
     private fun updateState(transform: State.() -> State) {
@@ -86,7 +92,6 @@ open class FeedViewModel(private val feedRepository: FeedRepository) : ViewModel
             isLoading = false
         )
     }
-
 
 
 }

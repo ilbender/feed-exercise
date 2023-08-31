@@ -4,7 +4,6 @@ import com.lightricks.feedexercise.database.FeedDatabase
 import com.lightricks.feedexercise.database.UserProject
 import com.lightricks.feedexercise.network.Constant
 import com.lightricks.feedexercise.network.FeedApiService
-import com.lightricks.feedexercise.network.TemplatesMetadataItem
 import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -26,12 +25,13 @@ class FeedRepository(
     fun refresh(): Completable {
         return feedApiService.getFeedData().subscribeOn(Schedulers.io()).flatMapCompletable { feedData ->
             feedDatabase.userProjectDao().insertAll(rotateList(feedData.templatesMetadata.map { item ->
-                UserProject(item.id, responseUrlToThumbnailUrl(item), item.isPremium)
+                UserProject(item.id, responseUrlToThumbnailUrl(item.templateThumbnailURI), item.isPremium)
             }))
         }.observeOn(AndroidSchedulers.mainThread())
     }
 
     fun getAllProjects(): Observable<List<UserProject>> {
+
         return feedDatabase.userProjectDao().getAll()
             .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
     }
@@ -43,6 +43,6 @@ class FeedRepository(
     }
 }
 
-fun responseUrlToThumbnailUrl(item: TemplatesMetadataItem): String {
-    return Constant.BASE_THUMBNAIL_URL + item.templateThumbnailURI
+fun responseUrlToThumbnailUrl(templateThumbnailURI: String): String {
+    return Constant.BASE_THUMBNAIL_URL + templateThumbnailURI
 }
