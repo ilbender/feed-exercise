@@ -5,51 +5,50 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.lightricks.feedexercise.database.FeedDatabase
 import com.lightricks.feedexercise.database.UserProject
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class FeedRepositoryTest {
-    private val db: FeedDatabase = Room.inMemoryDatabaseBuilder(
-        ApplicationProvider.getApplicationContext(),
-        FeedDatabase::class.java
-    ).build()
-    private val feedRepository: FeedRepository = FeedRepository(ConstantItemsApiService, db)
-    private val userProjectList: List<UserProject> = Constans.hardCodedList.map { item ->
-        UserProject(item.id, responseUrlToThumbnailUrl(item.thumbnailUrl), item.isPremium)
+
+    private lateinit var db: FeedDatabase
+    private lateinit var feedRepository: FeedRepository
+    private lateinit var userProjectList: List<UserProject>
+
+    @Before
+    fun init(){
+         db = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            FeedDatabase::class.java
+        ).build()
+         feedRepository = FeedRepository(ConstantItemsApiService, db)
+        userProjectList = Constans.hardCodedList.map { item ->
+            UserProject(item.id, responseUrlToThumbnailUrl(item.thumbnailUrl), item.isPremium)
+        }
+
+
     }
 
 
     @Test
     fun testRefreshSaves() {
-        var fetchedList: List<UserProject>
-        feedRepository.getAllProjects().doOnNext { userProjects ->
-            fetchedList = userProjects
-            Assert.assertTrue(fetchedList.isEmpty())
-        }.subscribe()
+        val projectsObserver = feedRepository.getAllProjects().take(1).test()
+        projectsObserver.awaitTerminalEvent()
+        Assert.assertTrue(projectsObserver.values()[0].isEmpty())
         feedRepository.refresh().test().awaitTerminalEvent()
-        db.userProjectDao().getAll().subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext { userProjects ->
-                fetchedList = userProjects
-                Assert.assertEquals(fetchedList, userProjectList)
-            }
-            .subscribe()
+        val entitiesObserver = db.userProjectDao().getAll().take(1).test()
+        entitiesObserver.awaitTerminalEvent()
+        Assert.assertEquals(entitiesObserver.values()[0], userProjectList)
     }
 
     @Test
     fun testGetAll() {
         this.db.userProjectDao().insertAll(userProjectList).test().awaitTerminalEvent()
-        var fetchedList: List<UserProject>
-        feedRepository.getAllProjects().subscribe { fetchedUserProjects ->
-            fetchedList = fetchedUserProjects
-            Assert.assertEquals(fetchedList, userProjectList)
-        }
-
-
+        val projectsObserver = feedRepository.getAllProjects().take(1).test()
+        projectsObserver.awaitTerminalEvent()
+        Assert.assertEquals(projectsObserver.values()[0], userProjectList)
     }
 }
 
