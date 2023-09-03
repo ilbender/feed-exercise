@@ -14,7 +14,7 @@ import java.io.InputStreamReader
 
 
 object ConstantItemsApiService : FeedApiService {
-    private val fullJson: TemplatesMetadata = JsonToTemplateMetaData.getFeedData()
+    private val fullJson: TemplatesMetadata = JsonToTemplateMetaData.getData()
 
     override fun getFeedData(): Single<TemplatesMetadata> {
         return Single.create { emitter -> emitter.onSuccess(fullJson) }
@@ -23,7 +23,7 @@ object ConstantItemsApiService : FeedApiService {
 
 object IncreasingItemsApiService : FeedApiService {
     private var size: Int = 1
-    private val fullLst = JsonToTemplateMetaData.getFeedData().templatesMetadata
+    private val fullLst = JsonToTemplateMetaData.getData().templatesMetadata
     override fun getFeedData(): Single<TemplatesMetadata> {
         val slicedLst: List<TemplatesMetadataItem> = fullLst.take(size)
         size = (size + 1) % (fullLst.size + 1)
@@ -36,7 +36,7 @@ object JsonToTemplateMetaData {
 
     val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     val adapter: JsonAdapter<TemplatesMetadata> = moshi.adapter(TemplatesMetadata::class.java)
-    fun getFeedData(): TemplatesMetadata {
+    fun getData(): TemplatesMetadata {
         val appContext = ApplicationProvider.getApplicationContext<Context>()
         val inputStream = appContext.assets.open("get_feed_response.json")
         val reader = BufferedReader(InputStreamReader(inputStream))

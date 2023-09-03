@@ -1,7 +1,8 @@
 package com.lightricks.feedexercise.data
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import androidx.lifecycle.testing.TestLifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -14,6 +15,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class ViewModelTest {
@@ -42,59 +45,72 @@ class ViewModelTest {
 
     @Test
     fun testViewModelInitData() {
-        init()
         val viewModelFactory = FeedViewModelFactory(constantfeedRepository)
         viewModel = viewModelFactory.create(FeedViewModel::class.java)
-        Thread.sleep(100)
-        lateinit var viewModelLst: List<FeedItem>
-        viewModel.getFeedItems().observe(
-            TestLifecycleOwner(),
-            { feedItems -> viewModelLst = feedItems })
-        Assert.assertEquals(viewModelLst, expectedFullLst)
+        while (viewModel.getFeedItems().blockingObserve()!!.size == 0){
+            Thread.sleep(10)
+        }
+        val actual = viewModel.getFeedItems().blockingObserve()!!
+        Assert.assertEquals(actual, expectedFullLst)
     }
 
 
     @Test
     fun testViewModelDeleteData() {
-        init()
         val viewModelFactory = FeedViewModelFactory(constantfeedRepository)
         viewModel = viewModelFactory.create(FeedViewModel::class.java)
-        Thread.sleep(100)
+        while (viewModel.getFeedItems().blockingObserve()!!.size == 0){
+            Thread.sleep(10)
+        }
+        var viewModelLst: List<FeedItem> = viewModel.getFeedItems().blockingObserve()!!
+        Assert.assertEquals(expectedFullLst,viewModelLst)
         deleteFirstProject()
-        lateinit var viewModelLst: List<FeedItem>
-        viewModel.getFeedItems().observe(
-            TestLifecycleOwner(),
-            { feedItems -> viewModelLst = feedItems })
+        while (viewModelLst.size == expectedFullLst.size){
+            viewModelLst = viewModel.getFeedItems().blockingObserve()!!
+            Thread.sleep(10)
+        }
         val expected = expectedFullLst.drop(1)
         Assert.assertEquals(expected, viewModelLst)
     }
 
     @Test
-    fun testViewModelUpdateInsertion() {
-        init()
+    fun testViewModelRefreshNewData() {
         val viewModelFactory = FeedViewModelFactory(increasingFeedRepo)
         viewModel = viewModelFactory.create(FeedViewModel::class.java)
-        Thread.sleep(100)
-        lateinit var viewModelLst: List<FeedItem>
-        viewModel.getFeedItems().observe(
-            TestLifecycleOwner(),
-            { feedItems -> viewModelLst = feedItems })
 
         for (i in 1..expectedFullLst.size) {
+            var viewModelLst: List<FeedItem> = viewModel.getFeedItems().blockingObserve()!!
+            while(viewModelLst.size < i){
+                viewModelLst = viewModel.getFeedItems().blockingObserve()!!
+                Thread.sleep(10)
+            }
             //toHashSet since order doesn't matter and refresh rotates the list due to bonus from
             //last step and its easier this way.
             val expected = expectedFullLst.take(i).toHashSet()
             Assert.assertEquals(viewModelLst.toHashSet(), expected)
             viewModel.refresh()
-            Thread.sleep(200) //wait for IO thingies
-
         }
     }
 
     private fun deleteFirstProject() {
-        Thread.sleep(100)
         val firstProject = this.db.userProjectDao().getById(expectedFullLst[0].id)
         this.db.userProjectDao().delete(firstProject)
-        Thread.sleep(100)
     }
+
+    private fun <T> LiveData<T>.blockingObserve(): T? {
+        var value: T? = null
+        val latch = CountDownLatch(1)
+        val observer = object : Observer<T> {
+            override fun onChanged(t: T) {
+                value = t
+                latch.countDown()
+                removeObserver(this)
+            }
+        }
+
+        observeForever(observer)
+        latch.await(5, TimeUnit.SECONDS)
+        return value
+    }
+
 }
