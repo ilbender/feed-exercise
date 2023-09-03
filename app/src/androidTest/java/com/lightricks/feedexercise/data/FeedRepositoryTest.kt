@@ -12,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class FeedRepositoryTest() {
+class FeedRepositoryTest {
     private val db: FeedDatabase = Room.inMemoryDatabaseBuilder(
         ApplicationProvider.getApplicationContext(),
         FeedDatabase::class.java
@@ -25,8 +25,12 @@ class FeedRepositoryTest() {
 
     @Test
     fun testRefreshSaves() {
-        feedRepository.refresh().test().awaitTerminalEvent()
         var fetchedList: List<UserProject>
+        feedRepository.getAllProjects().doOnNext { userProjects ->
+            fetchedList = userProjects
+            Assert.assertTrue(fetchedList.isEmpty())
+        }.subscribe()
+        feedRepository.refresh().test().awaitTerminalEvent()
         db.userProjectDao().getAll().subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext { userProjects ->
@@ -37,14 +41,13 @@ class FeedRepositoryTest() {
     }
 
     @Test
-    fun testGetAll(){
-        feedRepository.refresh().test().awaitTerminalEvent()
-        lateinit var fetchedList: List<UserProject>
-        feedRepository.getAllProjects().subscribe{
-                fetchedUserProjects -> fetchedList = fetchedUserProjects
-                Assert.assertEquals(fetchedList, userProjectList)
+    fun testGetAll() {
+        this.db.userProjectDao().insertAll(userProjectList).test().awaitTerminalEvent()
+        var fetchedList: List<UserProject>
+        feedRepository.getAllProjects().subscribe { fetchedUserProjects ->
+            fetchedList = fetchedUserProjects
+            Assert.assertEquals(fetchedList, userProjectList)
         }
-
 
 
     }
